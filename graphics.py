@@ -4,6 +4,7 @@ from pygame import *
 SCREEN_SIZE = 400
 SPACE_SIZE = SCREEN_SIZE/8
 BOARD_COLORS = [(240, 240, 240), (100, 90, 80)]
+HIGHLIGHT_COLOR = (150, 230, 245, 150)
 FLIPPED = False
 running = True
 
@@ -18,7 +19,7 @@ piecesSheet = pygame.transform.scale(piecesSheet, (SPACE_SIZE*6, SPACE_SIZE*2))
 def drawBoard():
     for x in range(8):
         for y in range(8):
-            rect(bgSurf, BOARD_COLORS[(x+y)%2], x, y)
+            rect(bgSurf, BOARD_COLORS[(x+y+1)%2], x, y)
 
 def refresh(board, highlights):
     pressPos = None
@@ -36,7 +37,7 @@ def refresh(board, highlights):
                 pressPos[1] = 7-pressPos[1]
     # highlight each highlight
     for h in highlights:
-        rect(overlaySurf, (255, 0, 0, 100), h[0], h[1])
+        rect(overlaySurf, HIGHLIGHT_COLOR, h[0], h[1])
     # add each piece to surface
     pieceSize = piecesSheet.get_height()/2
     for x, r in enumerate(board):
