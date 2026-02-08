@@ -9,18 +9,22 @@ toMove = "white"
 _selectedSpace = None
 _possibleMoves = []
 
+
 def update():
     global _selectedSpace
     global _possibleMoves
     press = refresh(board, _possibleMoves)
     if press is not None:
         _selectedSpace = board[press[0]][press[1]]
-        _possibleMoves = _selectedSpace.getMoves()
-    
+        if type(_selectedSpace) is Piece:
+            _possibleMoves = _selectedSpace.getMoves()
+
+
 def flipBoard():
     graphics.FLIPPED = not graphics.FLIPPED
     graphics.drawBoard()
-    
+
+
 # Initialize Board
 def init():
     graphics.drawBoard()
@@ -39,49 +43,74 @@ def init():
             else:
                 board[x][y] = None
 
+
 class Piece:
     def __init__(self, side, x, y, piece):
         self.x = x
         self.y = y
         self.side = side
         self.piece = pieceDict[piece] if type(piece) is int else piece
+        self._moves = []
 
     def getMoves(self):
-        moves = []
+        self._moves = []
         if self.piece == "pawn":
-            moves += [[0, 1] if self.side == "white" else [0, -1]]
-            if self.side == "white" and self.y == 1 or self.side == "black" and self.y == 6:
-                moves += [[0, 2] if self.side == "white" else [0, -2]]
+            side = 1 if self.side == "white" else -1
+            if self.addMove(0, side, 0) == 0:
+                self.addMove(0, side*2, 0)
+            self.addMove(1, side, 1)
+            self.addMove(-1, side, 1)
         elif self.piece == "knight":
             for x in [-1, 1]:
                 for y in [-1, 1]:
-                    moves += [[2*x, y], [x, 2*y]]
+                    self.addMove(x*2, y)
+                    self.addMove(x, y*2)
         elif self.piece == "bishop":
-            for i in range(1, 8):
-                for x in [-1, 1]:
-                    for y in [-1, 1]:
-                        moves.append([i*x, i*y])
+            for x in [-1, 1]:
+                for y in [-1, 1]:
+                    for i in range(1, 8):
+                        if self.addMove(x*i, y*i) != 0:
+                            break
         elif self.piece == "rook":
-            for i in range(1, 8):
-                for sign in [-1, 1]:
-                    moves += [[i * sign, 0], [0, i * sign]]
+            for sign in [-1, 1]:
+                for i in range(1, 8):
+                    if self.addMove(i * sign, 0) != 0:
+                        break
+                for i in range(1, 8):
+                    if self.addMove(0, i * sign) != 0:
+                        break
         elif self.piece == "queen":
-            for i in range(1, 8):
-                for x in [-1, 1]:
-                    for y in [-1, 1]:
-                        moves.append([i*x, i*y])
-                    moves += [[i * x, 0], [0, i * x]]
+            for x in [-1, 1]:
+                for y in [-1, 1]:
+                    for i in range(1, 8):
+                        if self.addMove(x*i, y*i) != 0:
+                            break
+                for i in range(1, 8):
+                    if self.addMove(i * x, 0) != 0:
+                        break
+                for i in range(1, 8):
+                    if self.addMove(0, i * x) != 0:
+                        break
         elif self.piece == "king":
             for x in [-1, 0, 1]:
                 for y in [-1, 0, 1]:
-                    if not x == 0 or not y == 0:
-                        moves.append([x, y])
+                    self.addMove(x, y)
+        return self._moves
 
-        final_moves = []
-        for m in moves:
-            m[0] += self.x
-            m[1] += self.y
-            if 0 <= m[0] <= 7 and 0 <= m[1] <= 7:
-                final_moves.append(m)
-
-        return final_moves
+    # returns -1 for end, 0 for empty, and 1 for taking
+    def addMove(self, x, y, req=None):
+        x += self.x
+        y += self.y
+        r = 0
+        if x > 7 or x < 0 or y > 7 or y < 0:
+            r = -1
+        elif board[x][y] == None:
+            r = 0
+        elif board[x][y].side == self.side:
+            r = -1
+        else:
+            r = 1
+        if (req is None or req == r) and r >= 0 and (x != self.x or y != self.y):
+            self._moves.append([x, y])
+            print(x, y)
+        return r
