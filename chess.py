@@ -5,6 +5,7 @@ import graphics
 # ** GLOBAL VARIABLES **
 pieceDict = ["pawn", "knight", "bishop", "rook", "queen", "king"]
 board = [[None for _ in range(8)] for _ in range(8)]
+playerColor = "white"
 toMove = "white"
 _selectedSpace = None
 _possibleMoves = []
@@ -13,16 +14,51 @@ _possibleMoves = []
 def update():
     global _selectedSpace
     global _possibleMoves
+    global toMove
     press = refresh(board, _possibleMoves)
-    if press is not None:
-        _selectedSpace = board[press[0]][press[1]]
-        if type(_selectedSpace) is Piece:
-            _possibleMoves = _selectedSpace.getMoves()
+    if toMove != playerColor:
+        makeBestMove()
+    else:
+        if press is not None:
+            if press in _possibleMoves:  # making a move
+                _selectedSpace.moveTo(press[0], press[1])
+                _selectedSpace = None
+                _possibleMoves = []
+                toMove = "black" if toMove == "white" else "white"
+            else:
+                _selectedSpace = board[press[0]][press[1]]
+                if type(_selectedSpace) is Piece and _selectedSpace.side == toMove:
+                    _possibleMoves = _selectedSpace.getMoves()
+                else:
+                    _possibleMoves = []
+
+
+def makeBestMove():
+    global toMove
+    allMoves = []
+    for x in board:
+        for p in x:
+            if p is not None and p.side == toMove:
+                allMoves += [[p] + m for m in p.getMoves()]
+    toMove = "black" if toMove == "white" else "white"
+    makeMove(allMoves[0])
+
+
+def setPlayerSide(newSide):
+    global playerColor
+    if newSide != "white" or newSide != "black": return
+    if newSide != playerColor:
+        flipBoard()
+    playerColor = newSide
 
 
 def flipBoard():
     graphics.FLIPPED = not graphics.FLIPPED
     graphics.drawBoard()
+
+
+def makeMove(moveInfo):
+    moveInfo[0].moveTo(moveInfo[1], moveInfo[2])
 
 
 # Initialize Board
@@ -52,24 +88,30 @@ class Piece:
         self.piece = pieceDict[piece] if type(piece) is int else piece
         self._moves = []
 
+    def moveTo(self, x, y):
+        board[self.x][self.y] = None
+        self.x = x
+        self.y = y
+        board[x][y] = self
+
     def getMoves(self):
         self._moves = []
         if self.piece == "pawn":
             side = 1 if self.side == "white" else -1
-            if self.addMove(0, side, 0) == 0:
-                self.addMove(0, side*2, 0)
+            if self.addMove(0, side, 0) == 0 and self.y == int(3.5 - 2.5 * side):
+                self.addMove(0, side * 2, 0)
             self.addMove(1, side, 1)
             self.addMove(-1, side, 1)
         elif self.piece == "knight":
             for x in [-1, 1]:
                 for y in [-1, 1]:
-                    self.addMove(x*2, y)
-                    self.addMove(x, y*2)
+                    self.addMove(x * 2, y)
+                    self.addMove(x, y * 2)
         elif self.piece == "bishop":
             for x in [-1, 1]:
                 for y in [-1, 1]:
                     for i in range(1, 8):
-                        if self.addMove(x*i, y*i) != 0:
+                        if self.addMove(x * i, y * i) != 0:
                             break
         elif self.piece == "rook":
             for sign in [-1, 1]:
@@ -83,7 +125,7 @@ class Piece:
             for x in [-1, 1]:
                 for y in [-1, 1]:
                     for i in range(1, 8):
-                        if self.addMove(x*i, y*i) != 0:
+                        if self.addMove(x * i, y * i) != 0:
                             break
                 for i in range(1, 8):
                     if self.addMove(i * x, 0) != 0:
@@ -112,5 +154,4 @@ class Piece:
             r = 1
         if (req is None or req == r) and r >= 0 and (x != self.x or y != self.y):
             self._moves.append([x, y])
-            print(x, y)
         return r
