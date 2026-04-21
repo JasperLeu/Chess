@@ -1,4 +1,4 @@
 import chess
-chess.init()
-while chess.running:
-    chess.update()
+game = chess.Game()
+while True:
+    continue

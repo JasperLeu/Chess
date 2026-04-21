@@ -1,106 +1,77 @@
 from graphics import *
 import graphics
-import copy
 
-# MOVE NOTATION ==> a1b2, c7h4, d8g8
-# ** GLOBAL VARIABLES **
-SEARCH_DEPTH = 5
-mainBoard = [[None for _ in range(8)] for _ in range(8)]
-playerColor = "white"
-toMove = "white"
-_selectedSpace = None
-_possibleMoves = []
+# ------------------------------------------------------------------------------------------- Initialize Pygame Graphics
+graphics.initLayers(3)
+BOARD_COLORS = [(240, 240, 240), (100, 90, 80)]
+HIGHLIGHT_COLOR = (150, 230, 245, 150)
+PIECE_SHEET = pygame.image.load("Pieces.png").convert_alpha()
+PIECE_SHEET = pygame.transform.scale(PIECE_SHEET, (SPACE_SIZE*6, SPACE_SIZE*2))
+for x in range(8):
+    for y in range(8):
+        rect(layers[0], BOARD_COLORS[(x+y+1)%2], x, y)
 
+# ----------------------------------------------------------------------------------------------------------- GAME CLASS
+class Game:
+    def __init__(self, showBoard=False):
+        self.showBoard = showBoard
+        self.turn = "white"
 
-def update():
-    global _selectedSpace
-    global _possibleMoves
-    global toMove
-    press = refresh(mainBoard, _possibleMoves)
-    if toMove != playerColor:
-        makeBestMove()
-    else:
-        if press is not None:
-            if press in _possibleMoves:  # making a move
-                _selectedSpace.moveTo(press[0], press[1])
-                _selectedSpace = None
-                _possibleMoves = []
-                toMove = "black" if toMove == "white" else "white"
-            else:
-                _selectedSpace = mainBoard[press[0]][press[1]]
-                if type(_selectedSpace) is Piece and _selectedSpace.side == toMove:
-                    _possibleMoves = _selectedSpace.getMoves()
+# ---------------------------------------------------------------------------------------------------------- BOARD CLASS
+class Board:
+    def __init__(self):
+        self.board = [["" for i in range(8)] for i in range(8)]
+        for x in range(8):
+            for y in range(8):
+                if y == 1 or y == 6:
+                    self.board[x][y] = ("black " if y == 6 else "white ") + "pawn"
+                elif y == 0 or y == 7:
+                    p = ""
+                    if x == 0 or x == 7: p = "rook"
+                    if x == 1 or x == 6: p = "knight"
+                    if x == 2 or x == 5: p = "bishop"
+                    if x == 3: p = "queen"
+                    if x == 4: p = "king"
+                    self.board[x][y] = ("black " if y == 6 else "white ") + p
                 else:
-                    _possibleMoves = []
+                    self.board[x][y] = ""
 
+    def display(self, selectedSpace):
+        pressPos = None
+        clear([1, 2]) # clear surfaces
+        for e in pygame.event.get():
+            if e.type == pygame.QUIT:
+                running = False
+            elif e.type == pygame.MOUSEBUTTONDOWN:
+                pressPos = [0, 0]
+                pressPos[0] = int(pygame.mouse.get_pos()[0] // SPACE_SIZE)
+                pressPos[1] = int(pygame.mouse.get_pos()[1] // SPACE_SIZE)
+                if not FLIPPED:
+                    pressPos[1] = 7-pressPos[1]
+        # highlight each highlight
+        for h in highlights:
+            rect(overlaySurf, HIGHLIGHT_COLOR, h[0], h[1])
+        # add each piece to surface
+        pieceSize = piecesSheet.get_height()/2
+        for x, r in enumerate(board):
+            for y, p in enumerate(r):
+                if p == None: continue
+                startY = 0 if p.side == "white" else pieceSize
+                startX = 0
+                if p.piece == "pawn": startX = pieceSize*5
+                if p.piece == "knight": startX = pieceSize*3
+                if p.piece == "bishop": startX = pieceSize*2
+                if p.piece == "rook": startX = pieceSize*4
+                if p.piece == "queen": startX = pieceSize
+                if p.piece == "king": startX = 0
+                newImg = PIECE_SHEET.subsurface(startX, startY, pieceSize, pieceSize)
+                if FLIPPED:
+                    layers[1].blit(newImg, (x*SPACE_SIZE, y*SPACE_SIZE))
+                else:
+                    layers[1].blit(newImg, (x*SPACE_SIZE, SCREEN_SIZE-(y+1)*SPACE_SIZE))
+        loadLayers()
 
-def makeBestMove(depth=0, turn=None, board=None):
-    if depth == SEARCH_DEPTH:
-        return 5
-    global toMove
-    if board is None:
-        board = mainBoard
-    else:
-        board = copyBoard(board)
-
-    bestMove = []
-    bestScore = 0
-    score = 0
-    for x in board:
-        for p in x:
-            if p is not None and p.side == toMove:
-                move = [[p] + m for m in p.getMoves()]
-                score = makeMove(move)
-
-    makeMove(bestMove)
-    toMove = "black" if toMove == "white" else "white"
-
-
-def copyBoard(board):
-    newBoard = [[None for _ in range(8)] for _ in range(8)]
-    for x in range(8):
-        for y in range(8):
-            if board[x][y] is not None:
-                newBoard[x][y] = Piece(newBoard, board[x][y].side, x, y, board[x][y].piece)
-    return board
-
-
-def setPlayerSide(newSide):
-    global playerColor
-    if newSide != "white" or newSide != "black": return
-    if newSide != playerColor:
-        flipBoard()
-    playerColor = newSide
-
-
-def flipBoard():
-    graphics.FLIPPED = not graphics.FLIPPED
-    graphics.drawBoard()
-
-
-def makeMove(moveInfo):
-    moveInfo[0].moveTo(moveInfo[1], moveInfo[2])
-
-
-# Initialize Board
-def init():
-    graphics.drawBoard()
-    for x in range(8):
-        for y in range(8):
-            if y == 1 or y == 6:
-                mainBoard[x][y] = Piece("black" if y == 6 else "white", x, y, "pawn")
-            elif y == 0 or y == 7:
-                p = ""
-                if x == 0 or x == 7: p = "rook"
-                if x == 1 or x == 6: p = "knight"
-                if x == 2 or x == 5: p = "bishop"
-                if x == 3: p = "queen"
-                if x == 4: p = "king"
-                mainBoard[x][y] = Piece("black" if y == 7 else "white", x, y, p)
-            else:
-                mainBoard[x][y] = None
-
-
+# ---------------------------------------------------------------------------------------------------------- PIECE CLASS
 class Piece:
     def __init__(self, board, side, x, y, piece):
         self.x = x
