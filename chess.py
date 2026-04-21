@@ -1,10 +1,11 @@
 from graphics import *
 import graphics
+import copy
 
 # MOVE NOTATION ==> a1b2, c7h4, d8g8
 # ** GLOBAL VARIABLES **
-pieceDict = ["pawn", "knight", "bishop", "rook", "queen", "king"]
-board = [[None for _ in range(8)] for _ in range(8)]
+SEARCH_DEPTH = 5
+mainBoard = [[None for _ in range(8)] for _ in range(8)]
 playerColor = "white"
 toMove = "white"
 _selectedSpace = None
@@ -15,7 +16,7 @@ def update():
     global _selectedSpace
     global _possibleMoves
     global toMove
-    press = refresh(board, _possibleMoves)
+    press = refresh(mainBoard, _possibleMoves)
     if toMove != playerColor:
         makeBestMove()
     else:
@@ -26,22 +27,42 @@ def update():
                 _possibleMoves = []
                 toMove = "black" if toMove == "white" else "white"
             else:
-                _selectedSpace = board[press[0]][press[1]]
+                _selectedSpace = mainBoard[press[0]][press[1]]
                 if type(_selectedSpace) is Piece and _selectedSpace.side == toMove:
                     _possibleMoves = _selectedSpace.getMoves()
                 else:
                     _possibleMoves = []
 
 
-def makeBestMove():
+def makeBestMove(depth=0, turn=None, board=None):
+    if depth == SEARCH_DEPTH:
+        return 5
     global toMove
-    allMoves = []
+    if board is None:
+        board = mainBoard
+    else:
+        board = copyBoard(board)
+
+    bestMove = []
+    bestScore = 0
+    score = 0
     for x in board:
         for p in x:
             if p is not None and p.side == toMove:
-                allMoves += [[p] + m for m in p.getMoves()]
+                move = [[p] + m for m in p.getMoves()]
+                score = makeMove(move)
+
+    makeMove(bestMove)
     toMove = "black" if toMove == "white" else "white"
-    makeMove(allMoves[0])
+
+
+def copyBoard(board):
+    newBoard = [[None for _ in range(8)] for _ in range(8)]
+    for x in range(8):
+        for y in range(8):
+            if board[x][y] is not None:
+                newBoard[x][y] = Piece(newBoard, board[x][y].side, x, y, board[x][y].piece)
+    return board
 
 
 def setPlayerSide(newSide):
@@ -67,7 +88,7 @@ def init():
     for x in range(8):
         for y in range(8):
             if y == 1 or y == 6:
-                board[x][y] = Piece("black" if y == 6 else "white", x, y, "pawn")
+                mainBoard[x][y] = Piece("black" if y == 6 else "white", x, y, "pawn")
             elif y == 0 or y == 7:
                 p = ""
                 if x == 0 or x == 7: p = "rook"
@@ -75,24 +96,25 @@ def init():
                 if x == 2 or x == 5: p = "bishop"
                 if x == 3: p = "queen"
                 if x == 4: p = "king"
-                board[x][y] = Piece("black" if y == 7 else "white", x, y, p)
+                mainBoard[x][y] = Piece("black" if y == 7 else "white", x, y, p)
             else:
-                board[x][y] = None
+                mainBoard[x][y] = None
 
 
 class Piece:
-    def __init__(self, side, x, y, piece):
+    def __init__(self, board, side, x, y, piece):
         self.x = x
         self.y = y
         self.side = side
-        self.piece = pieceDict[piece] if type(piece) is int else piece
+        self.piece = piece
         self._moves = []
+        self.board = board
 
     def moveTo(self, x, y):
-        board[self.x][self.y] = None
+        self.board[self.x][self.y] = None
         self.x = x
         self.y = y
-        board[x][y] = self
+        self.board[x][y] = self
 
     def getMoves(self):
         self._moves = []
@@ -146,9 +168,9 @@ class Piece:
         r = 0
         if x > 7 or x < 0 or y > 7 or y < 0:
             r = -1
-        elif board[x][y] == None:
+        elif self.board[x][y] == None:
             r = 0
-        elif board[x][y].side == self.side:
+        elif self.board[x][y].side == self.side:
             r = -1
         else:
             r = 1
