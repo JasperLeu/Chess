@@ -1,4 +1,5 @@
 import chess
 game = chess.Game()
-while True:
-    continue
+running = True
+while running:
+    running = not game.refresh()
