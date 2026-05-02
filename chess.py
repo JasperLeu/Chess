@@ -1,10 +1,12 @@
 from graphics import *
+import copy
 
 # ------------------------------------------------------------------------------------------- Initialize Pygame Graphics
 SCREEN_SIZE = 400
 SPACE_SIZE = SCREEN_SIZE/8
 BOARD_COLORS = [(240, 240, 240), (100, 90, 80)]
 HIGHLIGHT_COLOR = (150, 230, 245, 150)
+VALUE_DICT = {"pawn": 1, "knight": 3, "bishop": 3, "rook": 5, "queen": 9, "king": 1000}
 
 
 # ----------------------------------------------------------------------------------------------------------- GAME CLASS
@@ -35,10 +37,13 @@ class Game:
                     pressPos[1] = 7 - pressPos[1]
         if pressPos is not None:
             if pressPos in self.highlighted_squares:
-                self.board.pieces[pressPos[0]][pressPos[1]] = self.board.pieces[self.selectedPiece[0]][self.selectedPiece[1]]
-                self.board.pieces[self.selectedPiece[0]][self.selectedPiece[1]] = []
-            self.selectedPiece = pressPos
-            self.highlighted_squares = self.board.getMovesAtPos(pressPos[0], pressPos[1])
+                self.board.makeMove(self.selectedPiece+pressPos)
+                self.selectedPiece = []
+                self.highlighted_squares = []
+            else:
+                self.selectedPiece = pressPos
+                moves = self.board.getMovesAtPos(pressPos[0], pressPos[1])
+                self.highlighted_squares = [[i[2], i[3]] for i in moves]
 
         # Display graphics if specified
         if self.showBoard:
@@ -92,6 +97,34 @@ class Board:
                     graphic.layers[1].blit(newImg, (x * SPACE_SIZE, y * SPACE_SIZE))
                 else:
                     graphic.layers[1].blit(newImg, (x * SPACE_SIZE, SCREEN_SIZE - (y + 1) * SPACE_SIZE))
+
+    def getBestMove(self, depth, toMove):
+        if depth == 0:
+            matCount = 0
+            for x in self.pieces:
+                for p in x:
+                    if len(p) == 0:
+                        continue
+                    if p[0] == "white":
+                        matCount += VALUE_DICT[p[1]]
+                    else:
+                        matCount -= VALUE_DICT[p[1]]
+            return matCount, []
+        bestMove = []
+        bestScore = 0
+        bestLine = []
+        for x, r in enumerate(self.pieces):
+            for y, p in enumerate(r):
+                if len(p) > 0 and p[0] == toMove:
+                    moves = self.getMovesAtPos(x, y)
+                    for m in moves:
+                        newToMove = "white" if toMove == "black" else "black"
+                        score, line = self.makeMove(m, newBoard=True).getBestMove(depth-1, newToMove)
+                        if toMove == "white" and score >= bestScore or toMove == "black" and score <= bestScore:
+                            bestLine = line
+                            bestMove = m
+                            bestScore = score
+        return bestScore, [bestMove] + bestLine
 
     def getMovesAtPos(self, x, y):
         if len(self.pieces[x][y]) == 0:
@@ -155,5 +188,16 @@ class Board:
         else:
             r = 1
         if (req is None or req == r) and r >= 0 and (moveX != x or moveY != y):
-            moveList.append([moveX, moveY])
+            moveList.append([x, y, moveX, moveY])
         return r
+
+    def copyBoard(self):
+        newBoard = Board()
+        newBoard.pieces = copy.deepcopy(self.pieces)
+        return newBoard
+
+    def makeMove(self, move, newBoard=False):
+        board = self.copyBoard() if newBoard else self
+        board.pieces[move[2]][move[3]] = board.pieces[move[0]][move[1]]
+        board.pieces[move[0]][move[1]] = []
+        return board
